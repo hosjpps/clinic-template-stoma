@@ -1,0 +1,160 @@
+/**
+ * Reads ../research/prices/all_prices.json and writes content/prices.ts.
+ * Run: pnpm scrape:prices
+ *
+ * Input format per category key:
+ *   [ ["HEADER"], ["№","перечень услуг","цена"], [n, name, price, ...], ... ]
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+interface PriceItem {
+  id: string;
+  name: string;
+  price: number | null;
+  unit?: string;
+  featured?: boolean;
+}
+
+interface PriceCategory {
+  id: string;
+  name: string;
+  items: PriceItem[];
+}
+
+// TODO: update substrings to match your clinic's price list
+const FEATURED_SUBSTRINGS: string[] = [
+  'консультация стоматолога-терапевта',
+  'профессиональная чистка зубов',
+  'художественная реставрация premium',
+  'анестезия инфильтрационная',
+  'удаление зубного камня',
+  'винир прямой',
+  'air flow',
+  'ультразв. чистка',
+  'консультация врача ортодонта',
+  'брекет-система металлическая',
+  'брекет-система керамическая',
+  'удаление зуба простое',
+  'установка имплантата',
+  'коронка м/к standart',
+  'коронка керамическая на основе диоксида циркония',
+];
+
+// TODO: update category keys/labels to match your price JSON structure
+const CATEGORY_LABELS: Record<string, string> = {
+  terapiya:        'Терапия',
+  ortopediya:      'Ортопедия',
+  ortodontiya:     'Ортодонтия',
+  parodontologiya: 'Пародонтология',
+  hirurgiya:       'Хирургия',
+};
+
+function parsePrice(raw: unknown): { price: number | null; unit?: string } {
+  if (typeof raw === 'number') return { price: raw };
+  if (typeof raw === 'string') {
+    // "500/1000" → take first number (two numeric alternatives)
+    const twoNums = raw.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (twoNums) return { price: parseInt(twoNums[1], 10) };
+    // "200 / зуб" → price + unit
+    const slashUnit = raw.match(/^(\d+)\s*\/\s*(.+)$/);
+    if (slashUnit) return { price: parseInt(slashUnit[1], 10), unit: `/ ${slashUnit[2].trim()}` };
+    // "18000-29000" → price range, take first number + unit
+    const rangeMatch = raw.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (rangeMatch) return { price: parseInt(rangeMatch[1], 10), unit: `— ${parseInt(rangeMatch[2], 10).toLocaleString('ru-RU')} ₽` };
+    // "от 10000" or plain number string
+    const digits = raw.replace(/[^\d]/g, '');
+    if (digits.length > 0) return { price: parseInt(digits, 10) };
+    // "уточняйте" or non-numeric
+    return { price: null };
+  }
+  return { price: null };
+}
+
+function isFeatured(name: string): boolean {
+  const lower = name.toLowerCase();
+  return FEATURED_SUBSTRINGS.some(sub => lower.includes(sub.toLowerCase()));
+}
+
+function processCategory(catId: string, rows: unknown[][]): PriceItem[] {
+  const items: PriceItem[] = [];
+  for (const row of rows) {
+    if (!Array.isArray(row) || row.length < 2) continue;
+    // Skip header rows: first cell is a non-numeric string (e.g. "№", "ТЕРАПИЯ")
+    const firstCell = row[0];
+    if (typeof firstCell === 'string') {
+      const stripped = firstCell.replace(/[.\s]/g, '');
+      if (isNaN(Number(stripped))) continue;
+    }
+    const nameCell = row[1];
+    if (typeof nameCell !== 'string') continue;
+    const name = nameCell.trim();
+    if (!name) continue;
+    const { price, unit } = parsePrice(row[2]);
+    const id = `${catId.slice(0, 3)}-${String(items.length + 1).padStart(2, '0')}`;
+    const item: PriceItem = { id, name, price };
+    if (unit) item.unit = unit;
+    if (isFeatured(name)) item.featured = true;
+    items.push(item);
+  }
+  return items;
+}
+
+function main(): void {
+  const inputPath = path.resolve(__dirname, '../../research/prices/all_prices.json');
+  const outputPath = path.resolve(__dirname, '../content/prices.ts');
+
+  if (!fs.existsSync(inputPath)) {
+    console.error(`Input not found: ${inputPath}`);
+    process.exit(1);
+  }
+
+  const raw = JSON.parse(
+    fs.readFileSync(inputPath, 'utf-8')
+  ) as Record<string, unknown[][]>;
+
+  const categories: PriceCategory[] = Object.entries(CATEGORY_LABELS).map(([id, name]) => {
+    const rows = raw[id] ?? [];
+    const items = processCategory(id, rows);
+    console.log(`  ${name}: ${items.length} позиций, featured: ${items.filter(i => i.featured).length}`);
+    return { id, name, items };
+  });
+
+  const total = categories.reduce((s, c) => s + c.items.length, 0);
+  console.log(`Total: ${total} позиций`);
+
+  const output = [
+    '// AUTO-GENERATED by scripts/parse-prices.ts — do not edit manually',
+    '',
+    'export interface PriceItem {',
+    '  id: string;',
+    '  name: string;',
+    '  price: number | null;',
+    '  unit?: string;',
+    '  featured?: boolean;',
+    '}',
+    '',
+    'export interface PriceCategory {',
+    '  id: string;',
+    '  name: string;',
+    '  items: PriceItem[];',
+    '}',
+    '',
+    `export const priceCategories: PriceCategory[] = ${JSON.stringify(categories, null, 2)};`,
+    '',
+    '// Top-15 featured items for the homepage Prices section',
+    'export const featuredPrices = priceCategories',
+    '  .flatMap(cat => cat.items)',
+    '  .filter(item => item.featured)',
+    '  .slice(0, 15);',
+  ].join('\n');
+
+  fs.writeFileSync(outputPath, output, 'utf-8');
+  console.log(`Written: ${outputPath}`);
+}
+
+main();

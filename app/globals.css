@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Palette C — Soft hybrid (locked) */
+:root {
+  --background:           #FFFFFF;
+  --foreground:           #1E3A5F;
+  --card:                 #FFFFFF;
+  --card-foreground:      #1E3A5F;
+  --popover:              #FFFFFF;
+  --popover-foreground:   #1E3A5F;
+  --primary:              #1E3A5F;
+  --primary-foreground:   #FFFFFF;
+  --secondary:            #F4F1EC;
+  --secondary-foreground: #1E3A5F;
+  --muted:                #F4F1EC;
+  --muted-foreground:     #5a6b7a;
+  --accent:               #7BA3C0;
+  --accent-foreground:    #FFFFFF;
+  --destructive:          oklch(0.577 0.245 27.325);
+  --border:               #E5E0D6;
+  --input:                #E5E0D6;
+  --ring:                 #7BA3C0;
+  --radius:               12px;
+
+  /* Brand extras (Palette C) */
+  --brand-bg-soft:        #F4F1EC;
+  --brand-accent:         #7BA3C0;
+  --brand-accent-soft:    #D7E3EC;
+  --brand-text-muted:     #5a6b7a;
+}
+
+@theme inline {
+  --color-background:        var(--background);
+  --color-foreground:        var(--foreground);
+  --color-card:              var(--card);
+  --color-card-foreground:   var(--card-foreground);
+  --color-popover:           var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:           var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:         var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:             var(--muted);
+  --color-muted-foreground:  var(--muted-foreground);
+  --color-accent:            var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive:       var(--destructive);
+  --color-border:            var(--border);
+  --color-input:             var(--input);
+  --color-ring:              var(--ring);
+
+  /* Brand extras */
+  --color-bg-soft:        var(--brand-bg-soft);
+  --color-accent-soft:    var(--brand-accent-soft);
+  --color-text-muted:     var(--brand-text-muted);
+
+  --font-sans:  var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono:  var(--font-geist-mono);
+
+  --radius-sm:      8px;
+  --radius-default: 12px;
+  --radius-lg:      16px;
+  --radius-xl:      24px;
+
+  --shadow-card:     0 2px 12px 0 rgba(30, 58, 95, 0.08);
+  --shadow-elevated: 0 8px 32px 0 rgba(30, 58, 95, 0.12);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  }
+  h1, h2 {
+    font-family: var(--font-serif), Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  /* Offset anchor targets so sticky navbar doesn't overlap */
+  section[id] {
+    scroll-margin-top: 80px;
+  }
+}
