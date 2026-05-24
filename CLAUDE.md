@@ -49,19 +49,29 @@ All clinic-specific data lives in `content/`:
 
 ## Filling the template (step order)
 
-1. `content/clinic.ts` — all TODO fields
-2. `content/doctors.ts` — real doctor list
+**Step 0** — RESEARCH first. See [`RESEARCH-PIPELINE.md`](./RESEARCH-PIPELINE.md) — full Playwright + curl scraping workflow for collecting clinic data from Yandex Maps, 2GIS, Prodoctorov, old website. Output goes to `research/` directory at project root (sibling to this Next.js dir). Do NOT skip — without scraped data the next steps are guesswork.
+
+Then:
+
+1. `content/clinic.ts` — fill from `research/clinic_data.json`
+2. `content/doctors.ts` — real doctor list from `research/clinic_data.json` + `research/doctors-prodoctorov/`
 3. `content/faq.ts` — clinic-specific answers
-4. Place price JSON → `pnpm scrape:prices`
-5. Place reviews JSON → `pnpm scrape:reviews`
-6. Drop images → `pnpm images`
-7. Update `metadataBase` in `app/layout.tsx`, `BASE` in `app/sitemap.ts`, `SITE_URL` in `components/JsonLd.tsx`
-8. `pnpm build && pnpm test:e2e`
+4. `pnpm scrape:prices` — reads `research/prices/all_prices.json` → writes `content/prices.ts`
+5. `pnpm scrape:reviews` — reads `research/reviews_yandex.json` → writes `content/reviews.ts`
+6. Curate images → drop to `public/images/raw/clinic/` and `public/images/raw/doctors/`
+7. `pnpm optimize:images` — generates AVIF + WebP + JPEG fallback at 640/1280/1920 widths
+8. Update production URL in `app/layout.tsx` (`metadataBase`), `app/sitemap.ts` (`BASE`), `components/JsonLd.tsx` (`SITE_URL`)
+9. `pnpm build && pnpm test:smoke`
+10. Push to GitHub + deploy to Vercel
 
-## Reference implementation
+## Reference implementations
 
-APEX Dental Бутово: https://github.com/hosjpps/apex-dental-bytovo
-Study it to understand how a filled template looks in production.
+| Repo | Specialty | Notes |
+|---|---|---|
+| https://github.com/hosjpps/apex-dental-bytovo | Стоматология (АПЕКС, Южное Бутово) | Original reference — 14 routes, 6 service detail pages, full content |
+| (TBD) | Акушерство-гинекология | Second reference for non-stoma clinics — adds different UX patterns |
+
+Study these to understand how a filled template looks in production.
 
 ## Do NOT
 
